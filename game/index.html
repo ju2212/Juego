@@ -199,7 +199,7 @@ function normalMap(size, hgt, strength){
 }
 function tex(cv, u, v, name){
   const t = new B.DynamicTexture(name || 'dt', cv, scene, true);
-  t.update(false); t.wrapU = t.wrapV = B.Texture.WRAP_ADDRESSMODE; t.uScale = u || 1; t.vScale = v || 1; t.anisotropicFilteringLevel = 4;
+  t.update(true); t.wrapU = t.wrapV = B.Texture.WRAP_ADDRESSMODE; t.uScale = u || 1; t.vScale = v || 1; t.anisotropicFilteringLevel = 4;
   return t;
 }
 function heightCanvas(size, hgt){ return fromHeight(size, hgt, h => { const v = h * 255; return [v, v, v]; }); }
@@ -540,7 +540,7 @@ const scr1 = B.MeshBuilder.CreatePlane('scr', {width: 1.6, height: 1}, scene); s
 const scr2 = B.MeshBuilder.CreatePlane('scr', {width: 1.6, height: 1}, scene); scr2.position.set(-23.2, CY + 1.6, 19.6); scr2.rotation.y = 0.3; scr2.material = mScreen;
 // Cartel PRISMA
 const sign = B.MeshBuilder.CreatePlane('sign', {width: 12, height: 3}, scene);
-sign.position.set(-9, 8, HZ - 0.05); sign.scaling.x = -1; sign.material = mSign; sign.isPickable = false;
+sign.position.set(-9, 8, HZ - 0.05); sign.material = mSign; sign.isPickable = false;
 
 // --- Depósito: racks y autoelevador ---
 function rack(x, z0, z1, h){

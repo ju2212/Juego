@@ -107,9 +107,21 @@ Se puede **elegir el protagonista** entre cuatro. Cada uno tiene sus propias hab
 ## 8. Mundo y primera zona
 
 - **Ubicación:** Tandil (provincia de Buenos Aires), en un futuro dañado por la IA.
-- **Primera zona:** una **fábrica de aberturas de aluminio** llamada **PRISMA**, tomada por la IA hostil.
+- **Primera zona:** **PRISMA**, una **fábrica de ventanas del futuro** (inventada, no copia de ninguna real), tomada por la IA hostil.
 - **Objetivo de la zona:** **recuperar la fábrica** para poder usar sus máquinas.
+- **Importancia en la historia:** de PRISMA salen **las primeras herramientas del juego**: la primera tecnología (software y hardware) y **la IA aliada**, que nace o se rescata ahí.
 - Después se suman otras zonas de Tandil y alrededores.
+
+### Sectores de la fábrica
+| Sector | Contenido | Uso en el juego |
+|---|---|---|
+| Galpón de producción | Líneas robotizadas de ventanas inteligentes, prensas, cortadoras láser | Combate, trepar máquinas, obstáculos en movimiento |
+| Depósito y playa de carga | Estanterías altas, perfiles, camiones y autoelevadores autónomos | Plataformas, máquinas para hackear, recolectar recursos |
+| Oficinas y sala de servidores | Núcleo de la IA hostil en la fábrica | Objetivo final de la zona; acá aparece la IA aliada |
+| Techos y exterior | Techos de chapa, pasarelas, paneles solares, el predio y las sierras de Tandil de fondo | Exploración, rutas alternativas, francotiradores/drones |
+
+### Qué pasó en el mundo
+Se mezcla todo: **varias IAs compitiendo** entre sí, **guerras por recursos** y un **clima destruido**. La sociedad se partió entre los que dependen de las IAs, los que las combaten y los que buscan irse a colonias.
 
 > ⚠️ **A tener en cuenta:** si PRISMA es una empresa real, para un proyecto personal no hay problema, pero si el juego se publica conviene pedir permiso o usar un nombre ficticio parecido.
 
@@ -119,7 +131,7 @@ Se puede **elegir el protagonista** entre cuatro. Cada uno tiene sus propias hab
 
 Un juego así es enorme, así que se construye **por etapas**. Cada etapa termina con algo jugable en el celular.
 
-1. **Prototipo de movimiento:** personaje en tercera persona con joysticks, cámara, correr y saltar en un escenario simple.
+1. **Prototipo de movimiento (PRIMERA PRIORIDAD):** personaje en tercera persona con joysticks, cámara, correr y saltar en un escenario simple.
 2. **La fábrica (bloqueo):** la fábrica PRISMA armada con formas simples para probar recorridos.
 3. **Combate básico:** disparar y un tipo de enemigo (dron).
 4. **Hackeo e IA aliada:** tomar control de una cámara o una puerta.
@@ -140,4 +152,4 @@ Después: elegir personaje, familia, fabricación, colonia y nuevas zonas.
 - [ ] Cómo funciona la colonia fuera de la Tierra
 - [ ] Armas concretas
 - [ ] Música y sonido
-- [ ] Cómo es por dentro la fábrica (sectores, máquinas, salidas)
+- [ ] Plano detallado de la fábrica (recorrido, entradas y salidas)

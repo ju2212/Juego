@@ -1,7 +1,7 @@
 # Documento de Diseño del Juego (GDD)
 
 > **Nombre provisorio:** *Proyecto PRISMA* (el nombre definitivo se decide más adelante)
-> **Estado:** en diseño, todavía sin código
+> **Estado:** prototipo 0.1 jugable (etapa 1: movimiento y exploración)
 > **Última actualización:** 19/11/2026
 
 Este documento junta todas las decisiones tomadas. Cada vez que decidamos algo nuevo, se actualiza acá.
@@ -63,6 +63,8 @@ Se puede **elegir el protagonista** entre cuatro. Cada uno tiene sus propias hab
 - **Progresa**: empieza controlando cosas chicas (cámaras, luces) y termina controlando máquinas grandes.
 - Gasta **energía**: hay que conseguir baterías y puntos de carga.
 - Aporta parte del **humor** con sus comentarios.
+- **Origen:** era el **asistente que manejaba la fábrica PRISMA**. La IA hostil la encerró en los servidores y el protagonista la libera.
+- **Personalidad:** **sarcástica y graciosa**, pero leal. Es la fuente principal del humor del juego.
 
 ---
 
@@ -131,7 +133,7 @@ Se mezcla todo: **varias IAs compitiendo** entre sí, **guerras por recursos** y
 
 Un juego así es enorme, así que se construye **por etapas**. Cada etapa termina con algo jugable en el celular.
 
-1. **Prototipo de movimiento (PRIMERA PRIORIDAD):** personaje en tercera persona con joysticks, cámara, correr y saltar en un escenario simple.
+1. **Prototipo de movimiento (PRIMERA PRIORIDAD):** personaje en tercera persona con joysticks, cámara, correr y saltar dentro de la fábrica, **ya con algo de realismo** (luces, sombras y materiales).
 2. **La fábrica (bloqueo):** la fábrica PRISMA armada con formas simples para probar recorridos.
 3. **Combate básico:** disparar y un tipo de enemigo (dron).
 4. **Hackeo e IA aliada:** tomar control de una cámara o una puerta.

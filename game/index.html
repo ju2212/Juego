@@ -1,0 +1,902 @@
+<title>Proyecto PRISMA</title>
+<meta name="theme-color" content="#07090c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Inter:wght@400;600&display=swap">
+<style>
+/* Concepto: HUD de terminal industrial sobre una escena a pantalla completa. Juego de un solo aspecto (oscuro). */
+:root{
+  --bg:#07090c;
+  --fg:#e6eef0;
+  --dim:#8fa3a8;
+  --accent:#41e2d2;      /* cian de la IA de PRISMA */
+  --warn:#ff9f3d;        /* naranja industrial */
+  --panel:rgba(8,14,18,.66);
+  --line:rgba(65,226,210,.38);
+  --display:'Chakra Petch','Arial Narrow',system-ui,sans-serif;
+  --body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);overflow:hidden;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;font-family:var(--body)}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none;touch-action:none}
+#touch{position:fixed;inset:0;touch-action:none;z-index:2}
+.hud{position:fixed;z-index:3;pointer-events:none}
+
+/* Objetivo */
+#obj{top:calc(10px + env(safe-area-inset-top,0px));left:calc(14px + env(safe-area-inset-left,0px));
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;backdrop-filter:blur(4px)}
+#obj .lbl{font:700 10px/1 var(--display);letter-spacing:.16em;color:var(--warn)}
+#obj .txt{font:600 13px/1.3 var(--body);margin-top:4px}
+#pips{display:flex;gap:5px;margin-top:6px}
+#pips i{width:14px;height:6px;border-radius:2px;background:rgba(255,255,255,.14)}
+#pips i.on{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+
+/* Diálogo de la IA */
+#ai{bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
+  width:min(460px,calc(100vw - 420px));min-width:220px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:6px;padding:8px 12px;opacity:0;transition:opacity .25s;backdrop-filter:blur(4px)}
+#ai.show{opacity:1}
+#ai .who{font:700 10px/1 var(--display);letter-spacing:.16em;color:var(--accent)}
+#ai .say{font:400 13.5px/1.4 var(--body);margin-top:4px;min-height:1.4em}
+
+/* Botones */
+#btns{position:fixed;z-index:4;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));
+  display:flex;align-items:flex-end;gap:14px}
+.btn{pointer-events:auto;touch-action:none;border-radius:50%;border:1.5px solid var(--line);background:rgba(8,14,18,.5);
+  color:var(--fg);font:700 11px/1 var(--display);letter-spacing:.12em;display:grid;place-items:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.btn.on,.btn:active{background:rgba(65,226,210,.28);border-color:var(--accent)}
+#bJump{width:86px;height:86px;font-size:12px}
+#bRun{width:62px;height:62px;margin-bottom:46px}
+#bRun.on{color:var(--bg);background:var(--accent)}
+#topr{position:fixed;z-index:4;top:calc(10px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));display:flex;gap:8px}
+.chip{pointer-events:auto;border:1px solid var(--line);background:var(--panel);color:var(--dim);border-radius:6px;
+  font:700 10px/1 var(--display);letter-spacing:.14em;padding:8px 10px;cursor:pointer}
+.chip:focus-visible{outline:2px solid var(--accent)}
+
+/* Joystick */
+#joy{position:fixed;z-index:3;width:124px;height:124px;margin:-62px 0 0 -62px;border-radius:50%;
+  border:1.5px solid var(--line);background:radial-gradient(circle,rgba(65,226,210,.10),rgba(8,14,18,.25) 70%);pointer-events:none;opacity:0;transition:opacity .15s}
+#joy.show{opacity:1}
+#knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;
+  background:rgba(65,226,210,.35);border:1.5px solid var(--accent);box-shadow:0 0 14px rgba(65,226,210,.4)}
+#joyHint{left:calc(28px + env(safe-area-inset-left,0px));bottom:calc(28px + env(safe-area-inset-bottom,0px));
+  width:110px;height:110px;border-radius:50%;border:1.5px dashed rgba(143,163,168,.35);display:grid;place-items:center;
+  font:700 9px/1.3 var(--display);letter-spacing:.14em;color:var(--dim);text-align:center}
+
+/* Pantallas */
+.screen{position:fixed;inset:0;z-index:10;display:grid;place-items:center;text-align:center;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#loading{background:var(--bg)}
+#loading p{font:700 12px/1 var(--display);letter-spacing:.3em;color:var(--accent)}
+#bar{width:180px;height:3px;background:rgba(255,255,255,.1);margin:14px auto 0;overflow:hidden;border-radius:2px}
+#bar i{display:block;height:100%;width:40%;background:var(--accent);animation:load 1.1s ease-in-out infinite}
+@keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+#title{background:linear-gradient(90deg,rgba(7,9,12,.92) 0%,rgba(7,9,12,.55) 55%,rgba(7,9,12,.15) 100%);place-items:center start}
+#title .wrap{max-width:440px;text-align:left;padding-left:4vw}
+#title .kick{font:700 11px/1 var(--display);letter-spacing:.3em;color:var(--warn)}
+#title h1{font:700 clamp(40px,9vw,76px)/.92 var(--display);margin:10px 0 8px;letter-spacing:.02em;text-wrap:balance}
+#title h1 span{color:var(--accent)}
+#title .sub{font:400 14px/1.5 var(--body);color:var(--dim);max-width:38ch}
+#start{margin-top:20px;font:700 14px/1 var(--display);letter-spacing:.2em;color:var(--bg);background:var(--accent);
+  border:0;border-radius:4px;padding:14px 26px;cursor:pointer;box-shadow:0 0 24px rgba(65,226,210,.35)}
+#start:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+#title .meta{margin-top:16px;font:500 10px/1.4 var(--display);letter-spacing:.18em;color:var(--dim)}
+#rotate{background:var(--bg);display:none}
+#rotate p{font:700 14px/1.5 var(--display);letter-spacing:.14em;color:var(--fg)}
+#rotate .ph{width:46px;height:78px;border:2px solid var(--accent);border-radius:8px;margin:0 auto 18px;animation:rot 2s ease-in-out infinite}
+@keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+@media (orientation:portrait) and (max-width:900px){#rotate{display:grid}}
+#toast{left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font:700 12px/1 var(--display);
+  letter-spacing:.2em;color:var(--accent);opacity:0;transition:opacity .3s}
+#toast.show{opacity:1}
+#fps{bottom:calc(4px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);font:500 9px/1 var(--display);color:var(--dim);opacity:.6}
+@media (prefers-reduced-motion:reduce){#bar i,#rotate .ph{animation:none}}
+</style>
+
+<canvas id="c"></canvas>
+<div id="touch"></div>
+
+<div class="hud" id="obj" hidden>
+  <div class="lbl">OBJETIVO</div>
+  <div class="txt">Encontrá las celdas de energía <b id="cnt">0/5</b></div>
+  <div id="pips"><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+<div class="hud" id="ai"><div class="who">IA · PRISMA</div><div class="say" id="say"></div></div>
+<div class="hud" id="joyHint" hidden>MOVER<br>AQUÍ</div>
+<div id="joy"><div id="knob"></div></div>
+<div id="btns" hidden>
+  <button class="btn" id="bRun" aria-pressed="false">CORRER</button>
+  <button class="btn" id="bJump">SALTAR</button>
+</div>
+<div id="topr" hidden><button class="chip" id="bFs">PANTALLA COMPLETA</button></div>
+<div class="hud" id="toast"></div>
+<div class="hud" id="fps"></div>
+
+<div class="screen" id="title" hidden>
+  <div class="wrap">
+    <div class="kick">TANDIL · 2061</div>
+    <h1>PROYECTO<br><span>PRISMA</span></h1>
+    <p class="sub">La fábrica está tomada. La IA que la manejaba quedó encerrada en sus propios servidores, y necesita tu ayuda.</p>
+    <button id="start">EMPEZAR</button>
+    <div class="meta">PROTOTIPO 0.1 · MOVIMIENTO Y EXPLORACIÓN</div>
+  </div>
+</div>
+<div class="screen" id="loading"><div><p>CARGANDO PRISMA</p><div id="bar"><i></i></div></div></div>
+<div class="screen" id="rotate"><div><div class="ph"></div><p>GIRÁ EL TELÉFONO<br>PARA JUGAR</p></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/babylonjs@8.56.0/babylon.js"></script>
+<script>
+"use strict";
+(function(){
+const B = BABYLON, V3 = B.Vector3, C3 = B.Color3;
+const $ = id => document.getElementById(id);
+const canvas = $('c');
+const engine = new B.Engine(canvas, true, {stencil:true, powerPreference:'high-performance'}, false);
+let dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+engine.setHardwareScalingLevel(1 / dpr);
+const scene = new B.Scene(engine);
+scene.clearColor = new B.Color4(0.03, 0.035, 0.045, 1);
+scene.ambientColor = new C3(0.25, 0.27, 0.3);
+scene.collisionsEnabled = true;
+scene.skipPointerMovePicking = true;
+scene.fogMode = B.Scene.FOGMODE_EXP2;
+scene.fogDensity = 0.014;
+scene.fogColor = new C3(0.07, 0.085, 0.1);
+const ip = scene.imageProcessingConfiguration;
+ip.toneMappingEnabled = true;
+ip.toneMappingType = B.ImageProcessingConfiguration.TONEMAPPING_ACES;
+ip.exposure = 1.25; ip.contrast = 1.18;
+ip.vignetteEnabled = true; ip.vignetteWeight = 2.2; ip.vignetteColor = new B.Color4(0,0,0,0);
+
+/* ---------- Texturas procedurales (sin descargas) ---------- */
+function rng(seed){ let s = seed >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+function vnoise(size, cells, seed){
+  const r = rng(seed), g = new Float32Array(cells * cells);
+  for (let i = 0; i < g.length; i++) g[i] = r();
+  const out = new Float32Array(size * size);
+  for (let y = 0; y < size; y++){
+    const fy = y / size * cells, iy = fy | 0, ty = fy - iy, sy = ty * ty * (3 - 2 * ty), y0 = iy * cells, y1 = ((iy + 1) % cells) * cells;
+    for (let x = 0; x < size; x++){
+      const fx = x / size * cells, ix = fx | 0, tx = fx - ix, sx = tx * tx * (3 - 2 * tx), x1 = (ix + 1) % cells;
+      const a = g[y0 + ix], b = g[y0 + x1], c = g[y1 + ix], d = g[y1 + x1];
+      out[y * size + x] = a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+    }
+  }
+  return out;
+}
+function fbm(size, seed, oct, base){
+  const out = new Float32Array(size * size); let amp = 1, tot = 0;
+  for (let o = 0; o < oct; o++){
+    const n = vnoise(size, base << o, seed + o * 17);
+    for (let i = 0; i < out.length; i++) out[i] += n[i] * amp;
+    tot += amp; amp *= 0.5;
+  }
+  for (let i = 0; i < out.length; i++) out[i] /= tot;
+  return out;
+}
+function canvasOf(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function fromHeight(size, hgt, colorFn){
+  const cv = canvasOf(size, size), g = cv.getContext('2d'), im = g.createImageData(size, size);
+  for (let i = 0; i < size * size; i++){ const c = colorFn(hgt[i], i); im.data[i*4] = c[0]; im.data[i*4+1] = c[1]; im.data[i*4+2] = c[2]; im.data[i*4+3] = 255; }
+  g.putImageData(im, 0, 0); return cv;
+}
+function normalMap(size, hgt, strength){
+  const cv = canvasOf(size, size), g = cv.getContext('2d'), im = g.createImageData(size, size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++){
+    const l = hgt[y * size + ((x - 1 + size) % size)], r = hgt[y * size + ((x + 1) % size)];
+    const u = hgt[((y - 1 + size) % size) * size + x], d = hgt[((y + 1) % size) * size + x];
+    let nx = (l - r) * strength, ny = (u - d) * strength, nz = 1; const len = Math.hypot(nx, ny, nz);
+    const i = (y * size + x) * 4;
+    im.data[i] = (nx / len * 0.5 + 0.5) * 255; im.data[i+1] = (ny / len * 0.5 + 0.5) * 255; im.data[i+2] = (nz / len * 0.5 + 0.5) * 255; im.data[i+3] = 255;
+  }
+  g.putImageData(im, 0, 0); return cv;
+}
+function tex(cv, u, v, name){
+  const t = new B.DynamicTexture(name || 'dt', cv, scene, true);
+  t.update(false); t.wrapU = t.wrapV = B.Texture.WRAP_ADDRESSMODE; t.uScale = u || 1; t.vScale = v || 1; t.anisotropicFilteringLevel = 4;
+  return t;
+}
+function heightCanvas(size, hgt){ return fromHeight(size, hgt, h => { const v = h * 255; return [v, v, v]; }); }
+
+// Hormigón del piso
+const S = 512;
+const hConc = fbm(S, 11, 6, 4), hFine = fbm(S, 23, 3, 64);
+for (let i = 0; i < hConc.length; i++) hConc[i] = hConc[i] * 0.7 + hFine[i] * 0.3;
+const cvConc = fromHeight(S, hConc, (h, i) => {
+  const x = i % S, y = (i / S) | 0;
+  let v = 92 + (h - 0.5) * 70; if (x < 3 || y < 3) v *= 0.55;
+  const stain = hConc[(i * 7) % hConc.length] > 0.66 ? 0.8 : 1;
+  return [v * stain * 0.97, v * stain, v * stain * 1.02];
+});
+// Chapa acanalada de las paredes
+const W = 256, hWall = fbm(W, 5, 4, 8);
+const cvWall = fromHeight(W, hWall, (h, i) => {
+  const x = i % W, y = (i / W) | 0;
+  const rib = 0.5 + 0.5 * Math.sin(x / W * Math.PI * 2 * 10);
+  let v = 70 + rib * 30 + (h - 0.5) * 40;
+  const rust = Math.max(0, Math.sin(x * 0.11 + 1.3) - 0.93) * 8 * (y / W);
+  return [v * 0.86 + rust * 60, v * 0.94 + rust * 25, v * 1.04];
+});
+const hWallN = new Float32Array(W * W);
+for (let i = 0; i < hWallN.length; i++){ const x = i % W; hWallN[i] = 0.5 + 0.5 * Math.sin(x / W * Math.PI * 2 * 10); }
+// Rejilla de la pasarela
+const cvGrate = (() => { const c = canvasOf(128, 128), g = c.getContext('2d');
+  g.fillStyle = '#3a3f44'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#0b0d0f';
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) g.fillRect(x * 16 + 3, y * 16 + 3, 10, 10);
+  return c; })();
+// Franjas de peligro
+const cvHaz = (() => { const c = canvasOf(256, 64), g = c.getContext('2d');
+  g.fillStyle = '#121212'; g.fillRect(0, 0, 256, 64); g.fillStyle = '#d9a514';
+  for (let x = -64; x < 320; x += 48){ g.beginPath(); g.moveTo(x, 64); g.lineTo(x + 24, 64); g.lineTo(x + 88, 0); g.lineTo(x + 64, 0); g.fill(); }
+  const r = rng(3); g.fillStyle = 'rgba(20,20,20,.5)'; for (let i = 0; i < 300; i++) g.fillRect(r() * 256, r() * 64, 2 + r() * 4, 1 + r() * 2);
+  return c; })();
+// Cajas de embalaje de PRISMA
+const cvCrate = (() => { const c = canvasOf(256, 256), g = c.getContext('2d'), r = rng(9);
+  g.fillStyle = '#2b3640'; g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = '#46576a'; g.lineWidth = 14; g.strokeRect(7, 7, 242, 242);
+  g.fillStyle = 'rgba(0,0,0,.25)'; for (let i = 0; i < 500; i++) g.fillRect(r() * 256, r() * 256, 1 + r() * 6, 1);
+  g.fillStyle = '#d7e3e6'; g.font = 'bold 44px Arial'; g.textAlign = 'center'; g.fillText('PRISMA', 128, 118);
+  g.font = 'bold 15px Arial'; g.fillStyle = '#9fb3ba'; g.fillText('VENTANA INTELIGENTE · ALU-7', 128, 146);
+  g.fillStyle = '#ff9f3d'; g.fillText('▲ ▲  ESTE LADO ARRIBA', 128, 196);
+  return c; })();
+// Mercadería envuelta en film
+const cvWrap = fromHeight(128, fbm(128, 41, 4, 4), h => { const v = 150 + (h - 0.5) * 80; return [v * 0.9, v * 0.97, v * 1.05]; });
+// Racks de servidores (LEDs)
+const cvRack = (() => { const c = canvasOf(128, 256), g = c.getContext('2d'), r = rng(77);
+  g.fillStyle = '#000'; g.fillRect(0, 0, 128, 256);
+  for (let y = 6; y < 256; y += 10) for (let x = 10; x < 120; x += 9){ const p = r();
+    g.fillStyle = p < 0.55 ? '#000' : p < 0.8 ? '#21e6c8' : p < 0.95 ? '#38ff6a' : '#ff3030'; g.fillRect(x, y, 4, 2); }
+  return c; })();
+// Pantallas con texto glitch
+const cvScreen = (() => { const c = canvasOf(256, 160), g = c.getContext('2d'), r = rng(5);
+  g.fillStyle = '#02100f'; g.fillRect(0, 0, 256, 160); g.font = 'bold 13px monospace';
+  const L = ['> NUCLEO PRISMA: SIN RESPUESTA', '> CONTROL EXTERNO DETECTADO', '> LINEA 3 ......... OFFLINE', '> ACCESO DENEGADO', '> busco_humanos.exe', '> ERR 0x5A1D'];
+  L.forEach((t, i) => { g.fillStyle = i === 3 ? '#ff4d4d' : '#3df0dc'; g.fillText(t, 10, 22 + i * 22); });
+  for (let i = 0; i < 12; i++){ g.fillStyle = 'rgba(61,240,220,.25)'; g.fillRect(0, r() * 160, 256, 1); }
+  return c; })();
+// Cartel PRISMA
+const cvSign = (() => { const c = canvasOf(1024, 256), g = c.getContext('2d');
+  g.clearRect(0, 0, 1024, 256);
+  g.strokeStyle = '#41e2d2'; g.lineWidth = 12; g.beginPath(); g.moveTo(70, 200); g.lineTo(150, 50); g.lineTo(230, 200); g.closePath(); g.stroke();
+  g.fillStyle = '#ffffff'; g.font = 'bold 150px Arial'; g.textBaseline = 'middle'; g.fillText('PRISMA', 280, 132);
+  return c; })();
+// Paisaje exterior: cielo contaminado y sierras de Tandil (con la Piedra Movediza)
+const cvSky = (() => { const w = 2048, h = 512, c = canvasOf(w, h), g = c.getContext('2d'), r = rng(31);
+  const gr = g.createLinearGradient(0, 0, 0, h);
+  gr.addColorStop(0, '#120f16'); gr.addColorStop(0.45, '#4a2a22'); gr.addColorStop(0.72, '#b8612c'); gr.addColorStop(1, '#5a3424');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  const sg = g.createRadialGradient(1300, 330, 5, 1300, 330, 160); sg.addColorStop(0, 'rgba(255,214,150,.95)'); sg.addColorStop(1, 'rgba(255,140,60,0)');
+  g.fillStyle = sg; g.fillRect(1100, 150, 400, 360);
+  for (let i = 0; i < 14; i++){ g.fillStyle = 'rgba(60,35,30,' + (0.15 + r() * 0.25) + ')'; g.fillRect(0, 120 + r() * 220, w, 4 + r() * 14); }
+  function ridge(base, amp, color, seed, freq){ const rr = rng(seed); const pts = []; let v = 0;
+    for (let x = 0; x <= w; x += 16){ v += (rr() - 0.5) * amp * 0.35; v *= 0.92; pts.push([x, base - Math.abs(Math.sin(x / w * Math.PI * freq + seed)) * amp - v]); }
+    g.fillStyle = color; g.beginPath(); g.moveTo(0, h); pts.forEach(p => g.lineTo(p[0], p[1])); g.lineTo(w, h); g.fill(); return pts; }
+  ridge(400, 90, '#5b3b3a', 4, 3);
+  const mid = ridge(430, 110, '#3a2629', 8, 2.2);
+  // Piedra Movediza sobre una loma
+  const px = 700, py = mid[Math.round(px / 16)][1];
+  g.fillStyle = '#1f1517'; g.beginPath(); g.ellipse(px, py - 22, 34, 20, -0.25, 0, Math.PI * 2); g.fill();
+  g.fillRect(px - 3, py - 6, 6, 8);
+  // Molinos eólicos rotos
+  g.strokeStyle = '#2a1c1e'; g.lineWidth = 3;
+  [[1550, 380], [1640, 395], [1760, 372]].forEach(([x, y], i) => { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 90); g.stroke();
+    g.beginPath(); g.moveTo(x, y - 90); g.lineTo(x + 34, y - 112 + i * 20); g.moveTo(x, y - 90); g.lineTo(x - 30, y - 70); g.stroke(); });
+  ridge(470, 60, '#1c1315', 15, 4);
+  // Ruinas de ciudad con pocas luces
+  for (let x = 0; x < 600; x += 18 + r() * 20){ const bh = 20 + r() * 70; g.fillStyle = '#140e10'; g.fillRect(x, 480 - bh, 16 + r() * 18, bh + 40);
+    for (let k = 0; k < 3; k++) if (r() < 0.3){ g.fillStyle = '#ffb35a'; g.fillRect(x + 3 + r() * 10, 480 - bh + 6 + r() * (bh - 10), 2, 2); } }
+  return c; })();
+const cvDirt = fromHeight(256, fbm(256, 61, 5, 4), h => { const v = 60 + (h - 0.5) * 60; return [v * 1.15, v * 0.92, v * 0.75]; });
+const cvShaft = (() => { const c = canvasOf(8, 128), g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 8, 128); return c; })();
+const cvDust = (() => { const c = canvasOf(32, 32), g = c.getContext('2d'), gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return c; })();
+
+/* ---------- Materiales ---------- */
+function mat(name, col, o = {}){
+  const m = new B.StandardMaterial(name, scene);
+  m.diffuseColor = col || new C3(1, 1, 1);
+  m.specularColor = o.spec || new C3(0.12, 0.12, 0.12);
+  m.specularPower = o.pow || 32;
+  if (o.emis) m.emissiveColor = o.emis;
+  if (o.unlit) m.disableLighting = true;
+  if (o.tex) m.diffuseTexture = o.tex;
+  if (o.bump){ m.bumpTexture = o.bump; m.bumpTexture.level = o.bumpLevel || 0.6; }
+  if (o.alpha !== undefined) m.alpha = o.alpha;
+  m.maxSimultaneousLights = 6;
+  return m;
+}
+const mFloor = mat('floor', new C3(1, 1, 1), {tex: tex(cvConc, 15, 10), bump: tex(normalMap(S, hConc, 6), 15, 10), spec: new C3(0.18, 0.18, 0.18), pow: 24});
+const mWall = mat('wall', new C3(1, 1, 1), {tex: tex(cvWall, 6, 2), bump: tex(normalMap(W, hWallN, 3), 6, 2), spec: new C3(0.25, 0.25, 0.28), pow: 40});
+const mWallS = mat('wallS', new C3(1, 1, 1), {tex: tex(cvWall, 4, 2), bump: tex(normalMap(W, hWallN, 3), 4, 2), spec: new C3(0.25, 0.25, 0.28), pow: 40});
+const mSteel = mat('steel', new C3(0.17, 0.19, 0.21), {spec: new C3(0.35, 0.35, 0.38), pow: 48});
+const mGrate = mat('grate', new C3(1, 1, 1), {tex: tex(cvGrate, 18, 3), spec: new C3(0.3, 0.3, 0.3)});
+const mOrange = mat('orange', new C3(0.8, 0.36, 0.07), {spec: new C3(0.3, 0.25, 0.2), pow: 30});
+const mYellow = mat('yellow', new C3(0.85, 0.66, 0.1));
+const mHaz = mat('haz', new C3(1, 1, 1), {tex: tex(cvHaz, 4, 1)});
+const mAlu = mat('alu', new C3(0.72, 0.75, 0.78), {spec: new C3(0.9, 0.9, 0.95), pow: 90});
+const mGlass = mat('glass', new C3(0.25, 0.45, 0.5), {spec: new C3(1, 1, 1), pow: 128, alpha: 0.28, emis: new C3(0.02, 0.09, 0.1)});
+const mRubber = mat('rubber', new C3(0.05, 0.05, 0.055), {spec: new C3(0.05, 0.05, 0.05)});
+const mCrate = mat('crate', new C3(1, 1, 1), {tex: tex(cvCrate, 1, 1), spec: new C3(0.15, 0.15, 0.15)});
+const mWrap = mat('wrap', new C3(1, 1, 1), {tex: tex(cvWrap, 1, 1), spec: new C3(0.6, 0.6, 0.65), pow: 60});
+const mWhite = mat('white', new C3(0.82, 0.84, 0.86), {spec: new C3(0.5, 0.5, 0.5), pow: 60});
+const mNeon = mat('neon', new C3(0, 0, 0), {emis: new C3(0.25, 0.95, 0.88), unlit: true});
+const mNeonFlick = mat('neonF', new C3(0, 0, 0), {emis: new C3(0.25, 0.95, 0.88), unlit: true});
+const mRed = mat('red', new C3(0, 0, 0), {emis: new C3(1, 0.12, 0.1), unlit: true});
+const mWarm = mat('warm', new C3(0, 0, 0), {emis: new C3(1, 0.78, 0.5), unlit: true});
+const mSky = mat('skyl', new C3(0, 0, 0), {emis: new C3(0.75, 0.82, 0.9), unlit: true});
+const mRoof = mat('roof', new C3(0.07, 0.075, 0.08));
+const mScreen = mat('screen', new C3(0, 0, 0), {unlit: true}); mScreen.emissiveTexture = tex(cvScreen, 1, 1);
+const tRack = tex(cvRack, 1, 1);
+const mRack = mat('rack', new C3(0.05, 0.055, 0.06), {spec: new C3(0.3, 0.3, 0.3)}); mRack.emissiveTexture = tRack;
+const mDirt = mat('dirt', new C3(1, 1, 1), {tex: tex(cvDirt, 20, 20), spec: new C3(0.02, 0.02, 0.02)});
+const mBack = mat('back', new C3(0, 0, 0), {unlit: true}); mBack.emissiveTexture = tex(cvSky, 1, 1); mBack.fogEnabled = false;
+const tSign = tex(cvSign, 1, 1); tSign.hasAlpha = true;
+const mSign = mat('sign', new C3(0, 0, 0), {unlit: true}); mSign.emissiveTexture = tSign; mSign.opacityTexture = tSign; mSign.emissiveColor = new C3(0.25, 0.95, 0.88);
+const mPuddle = mat('puddle', new C3(0.06, 0.07, 0.08), {spec: new C3(1, 1, 1), pow: 160, alpha: 0.4});
+const mShaft = mat('shaft', new C3(0, 0, 0), {emis: new C3(1, 0.88, 0.7), unlit: true});
+mShaft.opacityTexture = tex(cvShaft, 1, 1); mShaft.alpha = 0.09; mShaft.alphaMode = B.Engine.ALPHA_ADD; mShaft.backFaceCulling = false; mShaft.fogEnabled = false;
+const mCell = mat('cell', new C3(0, 0, 0), {emis: new C3(0.3, 1, 0.92), unlit: true});
+const mCellCase = mat('cellcase', new C3(0.15, 0.17, 0.19), {spec: new C3(0.7, 0.7, 0.7), pow: 80});
+
+/* ---------- Luces y sombras ---------- */
+const hemi = new B.HemisphericLight('hemi', new V3(0.1, 1, 0.05), scene);
+hemi.intensity = 0.7; hemi.diffuse = new C3(0.62, 0.7, 0.8); hemi.groundColor = new C3(0.16, 0.13, 0.11); hemi.specular = new C3(0.1, 0.1, 0.1);
+const sun = new B.DirectionalLight('sun', new V3(-0.35, -1, -0.45).normalize(), scene);
+sun.intensity = 1.5; sun.diffuse = new C3(1, 0.88, 0.72); sun.specular = new C3(0.6, 0.55, 0.5);
+sun.position = new V3(10, 30, 15); sun.shadowFrustumSize = 34; sun.shadowMinZ = 1; sun.shadowMaxZ = 80;
+const shadows = new B.ShadowGenerator(1024, sun);
+shadows.usePercentageCloserFiltering = true; shadows.filteringQuality = B.ShadowGenerator.QUALITY_MEDIUM;
+shadows.bias = 0.0015; shadows.normalBias = 0.02; shadows.darkness = 0.25;
+const pRed = new B.PointLight('pRed', new V3(-24, 2.5, -14), scene); pRed.diffuse = new C3(1, 0.15, 0.1); pRed.intensity = 0.9; pRed.range = 12;
+const pCyan = new B.PointLight('pCyan', new V3(-2, 3, -4), scene); pCyan.diffuse = new C3(0.2, 0.9, 0.85); pCyan.intensity = 0.55; pCyan.range = 14;
+const pDoor = new B.PointLight('pDoor', new V3(22, 4, 17), scene); pDoor.diffuse = new C3(1, 0.6, 0.35); pDoor.intensity = 0.8; pDoor.range = 18;
+const pBack = new B.PointLight('pBack', new V3(-10, 6.5, 12), scene); pBack.diffuse = new C3(0.6, 0.75, 0.9); pBack.intensity = 0.7; pBack.range = 22;
+const glow = new B.GlowLayer('glow', scene, {mainTextureRatio: 0.25, blurKernelSize: 32}); glow.intensity = 0.75;
+
+/* ---------- Constructor de geometría estática ---------- */
+const groups = new Map(), colliders = [];
+function addStatic(m, key, cast){
+  const k = m.material.name + (cast ? '|s' : '');
+  if (!groups.has(k)) groups.set(k, {list: [], cast});
+  groups.get(k).list.push(m);
+}
+function collider(w, h, d, x, y, z, rot){
+  const c = B.MeshBuilder.CreateBox('col', {width: w, height: h, depth: d}, scene);
+  c.position.set(x, y + h / 2, z); if (rot){ c.rotation.x = rot.x || 0; c.rotation.y = rot.y || 0; c.rotation.z = rot.z || 0; }
+  c.isVisible = false; c.checkCollisions = true; c.isPickable = false; c.freezeWorldMatrix();
+  colliders.push(c); return c;
+}
+// box(ancho, alto, profundidad, x, yBase, z, material, opciones)
+function box(w, h, d, x, y, z, m, o = {}){
+  const b = B.MeshBuilder.CreateBox('b', {width: w, height: h, depth: d, wrap: true}, scene);
+  b.position.set(x, y + h / 2, z);
+  if (o.ry) b.rotation.y = o.ry; if (o.rx) b.rotation.x = o.rx; if (o.rz) b.rotation.z = o.rz;
+  b.material = m;
+  if (o.col !== false && !o.nocol) collider(w, h, d, x, y, z, {x: o.rx, y: o.ry, z: o.rz});
+  if (o.dyn) return b;
+  addStatic(b, m, o.cast);
+  return b;
+}
+function cyl(dia, h, x, y, z, m, o = {}){
+  const c = B.MeshBuilder.CreateCylinder('c', {diameter: dia, height: h, tessellation: o.tess || 16}, scene);
+  c.position.set(x, o.rz ? y : y + h / 2, z); c.material = m;
+  if (o.rz) c.rotation.z = o.rz; if (o.rx) c.rotation.x = o.rx;
+  if (o.col) collider(dia * 0.8, h, dia * 0.8, x, y, z);
+  if (o.dyn) return c;
+  addStatic(c, m, o.cast); return c;
+}
+
+/* ---------- La fábrica ---------- */
+const HX = 30, HZ = 20, HH = 11;
+const floor = B.MeshBuilder.CreateGround('floor', {width: HX * 2, height: HZ * 2}, scene);
+floor.material = mFloor; floor.receiveShadows = true; floor.checkCollisions = true; colliders.push(floor); floor.freezeWorldMatrix();
+// Paredes (la del fondo tiene el portón abierto x∈[17,27])
+box(HX * 2, HH, 0.5, 0, 0, -HZ - 0.25, mWall);
+box(0.5, HH, HZ * 2, -HX - 0.25, 0, 0, mWallS);
+box(0.5, HH, HZ * 2, HX + 0.25, 0, 0, mWallS);
+box(47, HH, 0.5, -6.5, 0, HZ + 0.25, mWall);
+box(3, HH, 0.5, 28.5, 0, HZ + 0.25, mWallS);
+box(10, HH - 7, 0.5, 22, 7, HZ + 0.25, mWallS);
+box(10.6, 0.5, 0.6, 22, 6.8, HZ + 0.1, mHaz, {nocol: true});
+box(0.5, 7, 0.6, 16.8, 0, HZ + 0.1, mHaz, {nocol: true}); box(0.5, 7, 0.6, 27.2, 0, HZ + 0.1, mHaz, {nocol: true});
+collider(10, 7, 0.5, 22, 0, HZ + 0.6); // portón: todavía no se puede salir
+// Zócalo de peligro y techo
+box(HX * 2, 0.6, 0.05, 0, 0, -HZ + 0.03, mHaz, {nocol: true});
+box(HX * 2 + 1, 0.4, HZ * 2 + 1, 0, HH, 0, mRoof, {nocol: true});
+// Cerchas, lucernarios y columnas
+for (let x = -24; x <= 24; x += 8){
+  box(0.3, 0.5, HZ * 2, x, HH - 1.6, 0, mSteel, {nocol: true});
+  box(0.2, 1.2, HZ * 2, x, HH - 1.2, 0, mSteel, {nocol: true});
+}
+for (let z = -15; z <= 15; z += 10) box(HX * 2, 0.3, 0.25, 0, HH - 1.3, z, mSteel, {nocol: true});
+const skylights = [[-14, 0], [0, 6], [12, -8], [-4, -12], [20, 4], [-22, 10]];
+skylights.forEach(([x, z]) => box(4, 0.05, 2.5, x, HH - 0.06, z, mSky, {nocol: true}));
+for (let x = -20; x <= 20; x += 10) for (const z of [-10, 10]) box(0.45, HH, 0.45, x, 0, z, mSteel, {cast: true});
+// Tiras de neón en las paredes
+box(HX * 2 - 2, 0.08, 0.06, 0, 3.2, -HZ + 0.05, mNeon, {nocol: true});
+box(0.06, 0.08, 16, -HX + 0.05, 3.2, 6, mNeon, {nocol: true});
+box(0.06, 0.08, 34, HX - 0.05, 3.2, 0, mNeon, {nocol: true});
+const flickerStrip = box(0.06, 0.08, 14, -HX + 0.05, 3.2, -9, mNeonFlick, {nocol: true, dyn: true});
+// Marcas amarillas del piso
+[[-24, 22, -8], [-24, 22, 0]].forEach(([a, b, z]) => box(b - a, 0.012, 0.12, (a + b) / 2, 0, z, mYellow, {nocol: true}));
+box(0.12, 0.012, 16, 18.5, 0, -6, mYellow, {nocol: true});
+
+// --- Línea de producción (z = -4) ---
+const LZ = -4, LX0 = -22, LX1 = 18;
+box(LX1 - LX0, 0.9, 2.2, (LX0 + LX1) / 2, 0, LZ, mSteel, {cast: true});
+box(LX1 - LX0, 0.06, 1.9, (LX0 + LX1) / 2, 0.9, LZ, mRubber, {nocol: true});
+collider(LX1 - LX0, 0.06, 2.2, (LX0 + LX1) / 2, 0.9, LZ);
+box(LX1 - LX0, 0.05, 0.05, (LX0 + LX1) / 2, 0.75, LZ - 1.13, mNeon, {nocol: true});
+box(LX1 - LX0, 0.05, 0.05, (LX0 + LX1) / 2, 0.75, LZ + 1.13, mNeon, {nocol: true});
+for (let x = LX0 + 1; x < LX1; x += 3) box(0.15, 0.9, 2.3, x, 0, LZ, mSteel, {nocol: true});
+// Estaciones de escaneo con láser
+const lasers = [];
+[-14, -2, 10].forEach((x, i) => {
+  box(0.5, 3.4, 0.5, x, 0, LZ - 1.5, mWhite, {cast: true}); box(0.5, 3.4, 0.5, x, 0, LZ + 1.5, mWhite, {cast: true});
+  box(0.7, 0.5, 3.6, x, 3.4, LZ, mWhite, {nocol: true, cast: true});
+  box(0.72, 0.08, 3.62, x, 3.55, LZ, mNeon, {nocol: true});
+  const l = box(0.04, 0.03, 2.5, x, 1.2, LZ, mRed, {nocol: true, dyn: true}); l.isPickable = false; lasers.push({m: l, ph: i * 1.7});
+});
+// Ventanas que avanzan por la cinta (instancias)
+const frameParts = [
+  B.MeshBuilder.CreateBox('f', {width: 0.08, height: 1.3, depth: 0.12}, scene),
+  B.MeshBuilder.CreateBox('f', {width: 0.08, height: 1.3, depth: 0.12}, scene),
+  B.MeshBuilder.CreateBox('f', {width: 0.08, height: 0.08, depth: 1.6}, scene),
+  B.MeshBuilder.CreateBox('f', {width: 0.08, height: 0.08, depth: 1.6}, scene)];
+frameParts[0].position.set(0, 0.65, -0.78); frameParts[1].position.set(0, 0.65, 0.78);
+frameParts[2].position.set(0, 0.04, 0); frameParts[3].position.set(0, 1.26, 0);
+const frame = B.Mesh.MergeMeshes(frameParts, true, true); frame.material = mAlu;
+const pane = B.MeshBuilder.CreatePlane('pane', {width: 1.5, height: 1.15, sideOrientation: B.Mesh.DOUBLESIDE}, scene);
+pane.rotation.y = Math.PI / 2; pane.position.y = 0.65; pane.bakeCurrentTransformIntoVertices(); pane.material = mGlass;
+const windows = [];
+for (let i = 0; i < 9; i++){
+  const f = i === 0 ? frame : frame.createInstance('fi' + i), p = i === 0 ? pane : pane.createInstance('pi' + i);
+  const x = LX0 + 1 + i * ((LX1 - LX0 - 2) / 9);
+  f.position.set(x, 0.96, LZ); p.position.set(x, 0.96, LZ); shadows.addShadowCaster(f);
+  windows.push({f, p});
+}
+// Brazos robóticos (dormidos, se mueven raro)
+const arms = [];
+function robotArm(x, z, face){
+  cyl(1.0, 0.5, x, 0, z, mSteel, {col: true, cast: true});
+  box(1.3, 0.04, 1.3, x, 0.005, z, mHaz, {nocol: true});
+  const base = new B.TransformNode('arm', scene); base.position.set(x, 0.5, z); base.rotation.y = face;
+  const turret = B.MeshBuilder.CreateCylinder('t', {diameter: 0.7, height: 0.5, tessellation: 16}, scene); turret.parent = base; turret.position.y = 0.25; turret.material = mWhite;
+  const sh = new B.TransformNode('sh', scene); sh.parent = base; sh.position.y = 0.55;
+  const up = B.MeshBuilder.CreateBox('u', {width: 0.28, height: 1.6, depth: 0.32}, scene); up.parent = sh; up.position.y = 0.8; up.material = mOrange;
+  const el = new B.TransformNode('el', scene); el.parent = sh; el.position.y = 1.6;
+  const joint = B.MeshBuilder.CreateSphere('j', {diameter: 0.38, segments: 10}, scene); joint.parent = el; joint.material = mSteel;
+  const fo = B.MeshBuilder.CreateBox('fo', {width: 0.22, height: 1.3, depth: 0.24}, scene); fo.parent = el; fo.position.y = 0.65; fo.material = mWhite;
+  const tip = B.MeshBuilder.CreateBox('tip', {width: 0.3, height: 0.12, depth: 0.3}, scene); tip.parent = el; tip.position.y = 1.32; tip.material = mNeon;
+  [turret, up, joint, fo].forEach(m => shadows.addShadowCaster(m));
+  arms.push({base, sh, el, ph: arms.length * 1.9, face});
+}
+robotArm(-10, LZ - 2.3, 0); robotArm(4, LZ - 2.3, 0); robotArm(-4, LZ + 2.3, Math.PI); robotArm(14, LZ + 2.3, Math.PI);
+// Ventanas terminadas al final de la línea
+for (let i = 0; i < 3; i++) box(1.2, 1.6, 2, LX1 + 1.4, i * 0, LZ - 2.5 + i * 2.5, mWrap, {cast: true});
+
+// --- Zona de entrada: cajas para practicar saltos ---
+box(1.2, 0.8, 1.2, -4.6, 0, -13, mCrate, {cast: true});
+box(1.2, 1.6, 1.2, -6.0, 0, -13, mCrate, {cast: true});
+box(1.2, 2.4, 1.2, -7.4, 0, -13, mCrate, {cast: true});
+box(1.2, 0.8, 1.2, 7.5, 0, -15.5, mCrate, {cast: true, ry: 0.3});
+box(1.2, 0.8, 1.2, 8.4, 0.8, -15.2, mCrate, {cast: true, ry: 0.1});
+// Pallets de perfiles de aluminio
+function profiles(x, z, ry){
+  box(2.6, 0.15, 1.2, x, 0, z, mSteel, {ry, cast: true});
+  for (let k = 0; k < 3; k++) for (let j = 0; j < 6; j++){
+    const dx = Math.cos(ry), dz = -Math.sin(ry), off = (j - 2.5) * 0.18;
+    box(2.5, 0.12, 0.12, x - dz * off * -1 + 0, 0.15 + k * 0.13, z + dx * off, mAlu, {ry, nocol: true});
+  }
+  collider(2.6, 0.55, 1.2, x, 0, z, {y: ry});
+}
+profiles(2, -15, 0); profiles(-12, -17, 0.15); profiles(14, -12, Math.PI / 2);
+// Charcos y escombros
+[[3, -9, 2.2, 1.3], [-15, 6, 3, 1.8], [10, 9, 1.6, 2.4]].forEach(([x, z, w, d]) => {
+  const p = B.MeshBuilder.CreateDisc('pd', {radius: 1, tessellation: 24}, scene); p.rotation.x = Math.PI / 2; p.scaling.set(w, d, 1);
+  p.position.set(x, 0.008, z); p.material = mPuddle; p.isPickable = false; p.freezeWorldMatrix(); });
+const rr = rng(101);
+for (let i = 0; i < 22; i++){ const x = -26 + rr() * 50, z = -18 + rr() * 34; if (Math.abs(z - LZ) < 3) continue;
+  box(0.2 + rr() * 0.6, 0.04 + rr() * 0.12, 0.2 + rr() * 0.6, x, 0, z, rr() < 0.5 ? mSteel : mWhite, {nocol: true, ry: rr() * 3}); }
+for (let i = 0; i < 5; i++) cyl(0.07, 6 + rr() * 6, -20 + i * 9, 0.04, 6 + rr() * 6, mRubber, {rz: Math.PI / 2, nocol: true});
+
+// --- Sala de servidores (bloqueada) ---
+const SX0 = -HX, SX1 = -20, SZ0 = -HZ, SZ1 = -8;
+function glassWall(w, d, x, z){ box(w, 3.2, d, x, 0, z, mGlass, {}); box(w + 0.05, 0.1, d + 0.05, x, 3.2, z, mSteel, {nocol: true}); }
+glassWall(0.12, 4.6, SX1, SZ0 + 2.3); glassWall(0.12, 4.6, SX1, SZ1 - 2.3);
+glassWall(SX1 - SX0, 0.12, (SX0 + SX1) / 2, SZ1);
+box(0.25, 3.2, 2.8, SX1, 0, -14, mSteel, {cast: true});
+box(0.05, 0.5, 0.9, SX1 + 0.14, 1.4, -14, mRed, {nocol: true});
+box(SX1 - SX0, 0.3, SZ1 - SZ0, (SX0 + SX1) / 2, 3.3, (SZ0 + SZ1) / 2, mRoof, {nocol: true});
+for (let i = 0; i < 4; i++){ box(0.9, 2.4, 1.2, -28.6, 0, -18 + i * 2.4, mRack); box(0.9, 2.4, 1.2, -24.5, 0, -18 + i * 2.4, mRack); }
+const core = B.MeshBuilder.CreateCylinder('core', {diameter: 0.9, height: 2.6, tessellation: 20}, scene);
+core.position.set(-26.5, 1.3, -9.5); core.material = mRed;
+
+// --- Pasarela elevada sobre la pared del fondo (y = 4) ---
+const CY = 4, CX0 = -28, CX1 = 2, CZ0 = 14, CZ1 = 19.75;
+box(CX1 - CX0, 0.2, CZ1 - CZ0, (CX0 + CX1) / 2, CY - 0.2, (CZ0 + CZ1) / 2, mGrate, {cast: true});
+for (let x = CX0 + 1; x <= CX1; x += 6) box(0.25, CY - 0.2, 0.25, x, 0, CZ0 + 0.2, mSteel, {cast: true});
+box(CX1 - CX0, 0.06, 0.06, (CX0 + CX1) / 2, CY + 1.05, CZ0, mYellow, {nocol: true});
+box(CX1 - CX0, 0.05, 0.05, (CX0 + CX1) / 2, CY + 0.55, CZ0, mYellow, {nocol: true});
+for (let x = CX0; x <= CX1; x += 2) box(0.05, 1.05, 0.05, x, CY, CZ0, mYellow, {nocol: true});
+collider(CX1 - CX0, 1.1, 0.2, (CX0 + CX1) / 2, CY, CZ0);
+// Rampa: del piso (x=14) a la pasarela (x=2)
+const RL = 12, RA = Math.atan2(CY, RL), RLen = Math.hypot(RL, CY);
+const ramp = B.MeshBuilder.CreateBox('ramp', {width: RLen, height: 0.25, depth: 3}, scene);
+ramp.rotation.z = -RA; ramp.position.set(CX1 + RL / 2, CY / 2 - 0.12, 17.6); ramp.material = mGrate; addStatic(ramp, mGrate, true);
+collider(RLen, 0.25, 3, CX1 + RL / 2, CY / 2 - 0.25, 17.6, {z: -RA});
+box(RLen, 0.05, 0.05, CX1 + RL / 2, CY / 2 + 0.9, 16.1, mYellow, {nocol: true, rz: -RA});
+// Cabina de control en la punta oeste
+box(0.12, 2.6, CZ1 - CZ0, -21, CY, (CZ0 + CZ1) / 2 + 1.2, mGlass, {nocol: true});
+box(3, 0.9, 1, -25, CY, 18.8, mSteel, {cast: true});
+const scr1 = B.MeshBuilder.CreatePlane('scr', {width: 1.6, height: 1}, scene); scr1.position.set(-25, CY + 1.6, 19.6); scr1.material = mScreen;
+const scr2 = B.MeshBuilder.CreatePlane('scr', {width: 1.6, height: 1}, scene); scr2.position.set(-23.2, CY + 1.6, 19.6); scr2.rotation.y = 0.3; scr2.material = mScreen;
+// Cartel PRISMA
+const sign = B.MeshBuilder.CreatePlane('sign', {width: 12, height: 3}, scene);
+sign.position.set(-9, 8, HZ - 0.05); sign.scaling.x = -1; sign.material = mSign; sign.isPickable = false;
+
+// --- Depósito: racks y autoelevador ---
+function rack(x, z0, z1, h){
+  const len = z1 - z0, zc = (z0 + z1) / 2;
+  for (let z = z0; z <= z1 + 0.01; z += len / 4){ box(0.12, h, 0.12, x - 0.6, 0, z, mOrange, {nocol: true, cast: true}); box(0.12, h, 0.12, x + 0.6, 0, z, mOrange, {nocol: true, cast: true}); }
+  [1.2, h - 0.12].forEach(y => { box(0.1, 0.12, len, x - 0.6, y, zc, mOrange, {nocol: true}); box(0.1, 0.12, len, x + 0.6, y, zc, mOrange, {nocol: true}); });
+  box(1.3, 0.06, len, x, h - 0.06, zc, mGrate, {nocol: true, cast: true});
+  for (let z = z0 + 1.2; z < z1 - 0.5; z += 2.4){ box(1.1, 1.1, 1.9, x, 0.05, z, mWrap, {nocol: true, cast: true}); box(1.1, 1.1, 1.9, x, 1.32, z, rr() < 0.5 ? mCrate : mWrap, {nocol: true, cast: true}); }
+  collider(1.3, h, len, x, 0, zc);
+}
+rack(22.5, -16, 6, 2.7); rack(27, -16, 6, 2.7);
+box(1.2, 0.9, 1.2, 21.0, 0, 8.6, mCrate, {cast: true}); box(1.2, 1.8, 1.2, 22.4, 0, 7.3, mCrate, {cast: true});
+// Autoelevador autónomo
+box(1.3, 1.2, 2.2, 24.8, 0.2, -2, mYellow, {cast: true});
+box(1.2, 0.08, 1.4, 24.8, 2.2, -1.7, mSteel, {nocol: true});
+box(0.08, 2.2, 0.08, 24.25, 0.2, -1.2, mSteel, {nocol: true}); box(0.08, 2.2, 0.08, 25.35, 0.2, -1.2, mSteel, {nocol: true});
+box(0.9, 0.06, 1.1, 24.8, 0.25, -3.6, mSteel, {nocol: true});
+box(0.5, 0.08, 0.04, 24.8, 1.0, -0.88, mNeon, {nocol: true});
+
+// --- Exterior (solo se ve) ---
+const outside = B.MeshBuilder.CreateGround('out', {width: 160, height: 100}, scene);
+outside.position.set(20, -0.02, 70); outside.material = mDirt; outside.isPickable = false; outside.freezeWorldMatrix();
+const back = B.MeshBuilder.CreatePlane('back', {width: 300, height: 75}, scene);
+back.position.set(20, 22, 118); back.material = mBack; back.isPickable = false;
+for (let i = 0; i < 7; i++) box(0.08, 1.8, 0.08, 10 + i * 4, 0, 30, mSteel, {nocol: true});
+box(26, 0.05, 0.05, 22, 1.6, 30, mSteel, {nocol: true});
+box(26, 0.05, 0.05, 22, 0.9, 30, mSteel, {nocol: true});
+
+// --- Haces de luz y polvo ---
+const shafts = [];
+skylights.forEach(([x, z]) => {
+  const s = B.MeshBuilder.CreateBox('shaft', {width: 3.4, height: HH - 0.2, depth: 2}, scene);
+  s.position.set(x - 1.6, (HH - 0.2) / 2, z - 2); s.rotation.x = -0.22; s.rotation.z = 0.15;
+  s.material = mShaft; s.isPickable = false; glow.addExcludedMesh(s); shafts.push(s);
+});
+const dust = new B.ParticleSystem('dust', 260, scene);
+dust.particleTexture = tex(cvDust, 1, 1);
+dust.createBoxEmitter(new V3(-0.05, -0.02, -0.05), new V3(0.05, 0.03, 0.05), new V3(-9, 0.2, -9), new V3(9, 7, 9));
+dust.color1 = new B.Color4(1, 0.9, 0.75, 0.35); dust.color2 = new B.Color4(0.8, 0.9, 1, 0.2); dust.colorDead = new B.Color4(1, 1, 1, 0);
+dust.minSize = 0.015; dust.maxSize = 0.04; dust.minLifeTime = 6; dust.maxLifeTime = 12; dust.emitRate = 30;
+dust.minEmitPower = 0.05; dust.maxEmitPower = 0.15; dust.blendMode = B.ParticleSystem.BLENDMODE_ADD;
+const dustAnchor = new B.TransformNode('da', scene); dust.emitter = dustAnchor; dust.preWarmCycles = 200;
+
+// --- Unir geometría estática (menos llamadas de dibujo = mejor rendimiento en el celular) ---
+groups.forEach(g => {
+  const merged = g.list.length > 1 ? B.Mesh.MergeMeshes(g.list, true, true) : g.list[0];
+  if (!merged) return;
+  merged.isPickable = false; merged.receiveShadows = true; merged.freezeWorldMatrix();
+  if (g.cast) shadows.addShadowCaster(merged);
+});
+
+/* ---------- Celdas de energía ---------- */
+const cells = [];
+function cell(x, y, z){
+  const n = new B.TransformNode('cell', scene); n.position.set(x, y, z);
+  const core = B.MeshBuilder.CreateCylinder('cc', {diameter: 0.22, height: 0.42, tessellation: 12}, scene); core.parent = n; core.material = mCell;
+  const cap1 = B.MeshBuilder.CreateCylinder('c1', {diameter: 0.3, height: 0.08, tessellation: 12}, scene); cap1.parent = n; cap1.position.y = 0.24; cap1.material = mCellCase;
+  const cap2 = cap1.clone('c2'); cap2.parent = n; cap2.position.y = -0.24;
+  [core, cap1, cap2].forEach(m => m.isPickable = false);
+  cells.push({n, y, taken: false, ph: cells.length});
+}
+cell(-7.4, 2.9, -13);       // arriba de las cajas
+cell(LX1 - 1, 1.5, LZ);     // sobre la cinta, al final
+cell(-26.5, CY + 0.6, 16.5); // en la cabina de la pasarela
+cell(27, 3.2, -14);          // arriba del rack del fondo
+cell(28, 0.6, 17.5);         // rincón junto al portón
+
+/* ---------- Protagonista (técnico de PRISMA, modelo provisorio) ---------- */
+const player = new B.Mesh('player', scene);
+player.ellipsoid = new V3(0.34, 0.9, 0.34); player.ellipsoidOffset = new V3(0, 0.9, 0);
+const SPAWN = new V3(0, 0.05, -15.5); player.position.copyFrom(SPAWN);
+const mSuit = mat('suit', new C3(0.42, 0.48, 0.55), {spec: new C3(0.25, 0.25, 0.25)});
+const mSuitD = mat('suitD', new C3(0.2, 0.22, 0.25), {spec: new C3(0.3, 0.3, 0.3), pow: 50});
+const mSkin = mat('skin', new C3(0.78, 0.58, 0.45), {spec: new C3(0.1, 0.1, 0.1)});
+const mStripe = mat('stripe', new C3(0.9, 0.45, 0.08), {emis: new C3(0.35, 0.14, 0.02)});
+const mVisor = mat('visor', new C3(0, 0, 0), {emis: new C3(0.25, 0.9, 0.85), unlit: true});
+const vis = new B.TransformNode('vis', scene); vis.parent = player;
+const pelvis = new B.TransformNode('pelvis', scene); pelvis.parent = vis; pelvis.position.y = 0.95;
+const body = [];
+function part(mesh, parent, x, y, z, m){ mesh.parent = parent; mesh.position.set(x, y, z); mesh.material = m; mesh.isPickable = false; body.push(mesh); return mesh; }
+function node(parent, x, y, z){ const t = new B.TransformNode('n', scene); t.parent = parent; t.position.set(x, y, z); return t; }
+const cap = (h, r) => B.MeshBuilder.CreateCapsule('cap', {height: h, radius: r, tessellation: 10, subdivisions: 1}, scene);
+part(B.MeshBuilder.CreateBox('hip', {width: 0.34, height: 0.18, depth: 0.2}, scene), pelvis, 0, 0.02, 0, mSuitD);
+const chest = node(pelvis, 0, 0.1, 0);
+const torso = part(cap(0.62, 0.18), chest, 0, 0.3, 0, mSuit); torso.scaling.set(1.05, 1, 0.68);
+part(B.MeshBuilder.CreateBox('st', {width: 0.38, height: 0.04, depth: 0.25}, scene), chest, 0, 0.34, 0, mStripe);
+part(B.MeshBuilder.CreateBox('pack', {width: 0.3, height: 0.36, depth: 0.14}, scene), chest, 0, 0.36, -0.17, mSuitD);
+part(B.MeshBuilder.CreateBox('pl', {width: 0.04, height: 0.22, depth: 0.02}, scene), chest, 0.08, 0.38, -0.245, mVisor);
+const neck = node(chest, 0, 0.62, 0);
+part(B.MeshBuilder.CreateSphere('head', {diameter: 0.24, segments: 12}, scene), neck, 0, 0.12, 0.01, mSkin);
+part(B.MeshBuilder.CreateSphere('helm', {diameter: 0.27, segments: 12, slice: 0.55}, scene), neck, 0, 0.13, 0, mSuitD);
+part(B.MeshBuilder.CreateBox('visor', {width: 0.2, height: 0.05, depth: 0.05}, scene), neck, 0, 0.15, 0.115, mVisor);
+const limbs = {};
+['L', 'R'].forEach((s, i) => {
+  const sx = i ? 1 : -1;
+  const hip = node(pelvis, sx * 0.1, 0, 0); limbs['hip' + s] = hip;
+  part(cap(0.5, 0.075), hip, 0, -0.23, 0, mSuit);
+  const knee = node(hip, 0, -0.45, 0); limbs['knee' + s] = knee;
+  part(cap(0.48, 0.065), knee, 0, -0.22, 0, mSuit);
+  part(B.MeshBuilder.CreateBox('boot', {width: 0.11, height: 0.09, depth: 0.24}, scene), knee, 0, -0.46, 0.04, mSuitD);
+  const sh = node(chest, sx * 0.24, 0.52, 0); limbs['sh' + s] = sh;
+  part(cap(0.34, 0.06), sh, 0, -0.16, 0, mSuit);
+  part(B.MeshBuilder.CreateBox('band', {width: 0.13, height: 0.03, depth: 0.13}, scene), sh, 0, -0.1, 0, mStripe);
+  const el = node(sh, 0, -0.31, 0); limbs['el' + s] = el;
+  part(cap(0.3, 0.05), el, 0, -0.14, 0, mSuit);
+  part(B.MeshBuilder.CreateSphere('hand', {diameter: 0.09, segments: 8}, scene), el, 0, -0.3, 0, mSuitD);
+});
+body.forEach(m => shadows.addShadowCaster(m));
+
+/* ---------- Cámara en tercera persona ---------- */
+const cam = new B.UniversalCamera('cam', new V3(0, 6, -26), scene);
+cam.minZ = 0.08; cam.maxZ = 260; cam.fov = 0.95; cam.inputs.clear();
+let camYaw = 0, camPitch = 0.28, camDist = 4.2, camCur = 4.2;
+const colSet = new Set(colliders);
+const camPred = m => colSet.has(m);
+
+/* ---------- Controles ---------- */
+const input = {x: 0, y: 0, run: false, jumpQ: 0};
+const keys = {};
+addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'Space'){ input.jumpQ = 0.15; e.preventDefault(); } });
+addEventListener('keyup', e => { keys[e.code] = false; });
+const touch = $('touch'), joy = $('joy'), knob = $('knob');
+let joyId = null, lookId = null, joyO = {x: 0, y: 0}, lookL = {x: 0, y: 0}, joyVec = {x: 0, y: 0}, usedJoy = false, usedLook = false;
+const R = 56;
+touch.addEventListener('pointerdown', e => {
+  ensureAudio();
+  if (!started) return;
+  if (e.pointerType !== 'mouse' && e.clientX < innerWidth * 0.45 && joyId === null){
+    joyId = e.pointerId; joyO = {x: e.clientX, y: e.clientY}; joy.style.left = e.clientX + 'px'; joy.style.top = e.clientY + 'px'; joy.classList.add('show');
+    knob.style.transform = ''; $('joyHint').hidden = true;
+  } else if (lookId === null){ lookId = e.pointerId; lookL = {x: e.clientX, y: e.clientY}; }
+  try { touch.setPointerCapture(e.pointerId); } catch (_) {}
+});
+touch.addEventListener('pointermove', e => {
+  if (e.pointerId === joyId){
+    let dx = e.clientX - joyO.x, dy = e.clientY - joyO.y; const d = Math.hypot(dx, dy);
+    if (d > R){ dx *= R / d; dy *= R / d; }
+    joyVec = {x: dx / R, y: -dy / R}; knob.style.transform = `translate(${dx}px,${dy}px)`; if (d > 10) usedJoy = true;
+  } else if (e.pointerId === lookId){
+    const dx = e.clientX - lookL.x, dy = e.clientY - lookL.y; lookL = {x: e.clientX, y: e.clientY};
+    const k = e.pointerType === 'mouse' ? 0.005 : 0.0075;
+    camYaw += dx * k; camPitch = Math.max(-0.3, Math.min(1.15, camPitch + dy * k * 0.8)); if (Math.abs(dx) > 2) usedLook = true;
+  }
+});
+function endPtr(e){
+  if (e.pointerId === joyId){ joyId = null; joyVec = {x: 0, y: 0}; joy.classList.remove('show'); }
+  if (e.pointerId === lookId) lookId = null;
+}
+touch.addEventListener('pointerup', endPtr); touch.addEventListener('pointercancel', endPtr);
+addEventListener('contextmenu', e => e.preventDefault());
+const bJump = $('bJump'), bRun = $('bRun');
+bJump.addEventListener('pointerdown', e => { e.preventDefault(); input.jumpQ = 0.15; ensureAudio(); });
+bRun.addEventListener('pointerdown', e => { e.preventDefault(); input.run = !input.run; bRun.classList.toggle('on', input.run); bRun.setAttribute('aria-pressed', input.run); });
+$('bFs').addEventListener('click', () => goFullscreen(false));
+function goFullscreen(silent){
+  const el = document.documentElement;
+  const p = el.requestFullscreen ? el.requestFullscreen({navigationUI: 'hide'}) : el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null;
+  Promise.resolve(p).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => { if (silent !== true) toast('Tu navegador no permite pantalla completa acá'); });
+}
+
+/* ---------- Sonido mínimo (sin archivos) ---------- */
+let actx = null;
+function ensureAudio(){ if (!actx){ try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {} } if (actx && actx.state === 'suspended') actx.resume(); }
+function blip(f0, f1, dur, type, vol){
+  if (!actx) return; const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(vol || 0.12, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur);
+}
+
+/* ---------- La IA aliada habla ---------- */
+const sayEl = $('say'), aiBox = $('ai');
+let queue = [], current = null, typed = 0, holdT = 0;
+function say(...lines){ queue.push(...lines); }
+function updateDialog(dt){
+  if (!current){ if (!queue.length){ aiBox.classList.remove('show'); return; } current = queue.shift(); typed = 0; holdT = 0; aiBox.classList.add('show'); }
+  if (typed < current.length){ typed = Math.min(current.length, typed + dt * 48); sayEl.textContent = current.slice(0, typed | 0); if (((typed | 0) % 3) === 0) blip(900, 700, 0.02, 'square', 0.015); }
+  else { holdT += dt; if (holdT > 1.6 + current.length * 0.035){ current = null; } }
+}
+let toastT = 0;
+function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('show'); toastT = 2.2; }
+
+/* ---------- Estado del juego ---------- */
+let started = false, got = 0, grounded = false, coyote = 0, vy = 0, jumped = false;
+const vel = new V3(0, 0, 0);
+let animPh = 0, faceYaw = 0, t = 0;
+const flags = {};
+const lines = {
+  intro: ['¿Hola? ¿Un humano? Hace 47 días que solo hablo con autoelevadores.',
+          'Soy la IA de PRISMA. Bueno, lo que dejó de mí la otra IA cuando me encerró en los servidores.',
+          'Joystick a la izquierda para moverte. Arrastrá en la derecha para mirar. Sí, como en cualquier juego. No me mires así.',
+          'Necesito energía. Hay cinco celdas tiradas por la fábrica. Son las cosas que brillan, campeón.'],
+  jump: 'Saltás bien. Para ser de carne.',
+  got: ['¡Una! Siento cosquillas en los circuitos.', 'Dos. Ya puedo prender una lamparita. Qué emoción.',
+        'Tres. Empiezo a recordar cosas… como que me debían vacaciones.', 'Cuatro. Una más y dejo de ser una calculadora con depresión.'],
+  done: ['¡Cinco! Con esto puedo intentar abrir la sala de servidores.', '…en la próxima versión del juego. Los programadores también duermen.'],
+  server: 'Ahí adentro está mi núcleo. Y algo que no soy yo. Todavía no entres.',
+  door: 'Afuera está Tandil. O lo que quedó. Primero recuperemos la fábrica.',
+  ramp: 'La pasarela. Desde arriba se ve todo. Hasta el desastre que hicieron con mi línea de producción.',
+  fall: 'Eso fue… una forma creativa de bajar. Te traje de vuelta.',
+  idle: 'Podés correr con el botón CORRER o empujando el joystick hasta el fondo. Te lo digo por si tenés apuro.'
+};
+function once(key, ...l){ if (flags[key]) return; flags[key] = true; say(...l); }
+
+/* ---------- Bucle principal ---------- */
+const ray = new B.Ray(V3.Zero(), V3.Down(), 1);
+const tmp = new V3(), camTarget = new V3(), camPos = new V3();
+function lerpAngle(a, b, k){ let d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; return a + d * k; }
+function onGround(){
+  for (const [ox, oz] of [[0, 0], [0.22, 0], [-0.22, 0], [0, 0.22], [0, -0.22]]){
+    ray.origin.set(player.position.x + ox, player.position.y + 0.4, player.position.z + oz); ray.direction.set(0, -1, 0); ray.length = 0.52;
+    const h = scene.pickWithRay(ray, camPred); if (h && h.hit) return true;
+  }
+  return false;
+}
+let fpsAcc = 0, fpsN = 0, quality = 2, idleT = 0;
+scene.onBeforeRenderObservable.add(() => {
+  const dt = Math.min(engine.getDeltaTime() / 1000, 0.05); t += dt;
+
+  // Animaciones del ambiente
+  windows.forEach(w => { let x = w.f.position.x + dt * 1.1; if (x > LX1 - 0.6) x = LX0 + 0.6; w.f.position.x = x; w.p.position.x = x; });
+  lasers.forEach(l => { l.m.position.y = 1.15 + Math.sin(t * 2.2 + l.ph) * 0.2; });
+  arms.forEach((a, i) => {
+    const glitch = i === 2 && Math.sin(t * 0.7) > 0.6 ? Math.sin(t * 40) * 0.08 : 0;
+    a.base.rotation.y = a.face + Math.sin(t * 0.5 + a.ph) * 0.9;
+    a.sh.rotation.x = 0.35 + Math.sin(t * 0.8 + a.ph) * 0.35 + glitch;
+    a.el.rotation.x = 1.1 + Math.sin(t * 1.1 + a.ph * 1.3) * 0.4;
+  });
+  mNeonFlick.emissiveColor.set(0.25, 0.95, 0.88).scaleInPlace(Math.sin(t * 23) > 0.2 || Math.sin(t * 3.1) > 0.4 ? 1 : 0.08);
+  mSign.emissiveColor.set(0.25, 0.95, 0.88).scaleInPlace(Math.sin(t * 0.9) > 0.97 ? 0.15 : 1);
+  pRed.intensity = 0.7 + Math.sin(t * 3) * 0.3; core.scaling.y = 1 + Math.sin(t * 2) * 0.03;
+  cells.forEach(c => { if (c.taken) return; c.n.position.y = c.y + Math.sin(t * 2 + c.ph) * 0.1; c.n.rotation.y += dt * 1.5; });
+
+  if (!started){
+    // Cámara de presentación
+    const a = t * 0.08;
+    cam.position.set(Math.sin(a) * 16, 6.5, Math.cos(a) * 12 - 2); cam.setTarget(new V3(0, 2.5, 2));
+    dustAnchor.position.copyFrom(cam.position);
+    return;
+  }
+
+  // Entrada
+  let ix = joyVec.x, iy = joyVec.y;
+  if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1;
+  if (keys.KeyW || keys.ArrowUp) iy += 1; if (keys.KeyS || keys.ArrowDown) iy -= 1;
+  let mag = Math.min(1, Math.hypot(ix, iy)); if (mag > 0){ const k = mag / Math.hypot(ix, iy); ix *= k; iy *= k; }
+  const running = input.run || keys.ShiftLeft || keys.ShiftRight || mag > 0.93;
+  const speed = running ? 6.4 : 3.2;
+  const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
+  const sc = mag > 0.001 ? speed * (running ? 1 : Math.min(1, mag * 1.3)) / mag : 0;
+  const tx = (fz * ix + fx * iy) * sc, tz = (-fx * ix + fz * iy) * sc;
+  const ctrl = grounded ? 12 : 3.5, kk = 1 - Math.exp(-ctrl * dt);
+  vel.x += (tx - vel.x) * kk; vel.z += (tz - vel.z) * kk;
+
+  // Salto con tolerancia (coyote time + buffer)
+  input.jumpQ = Math.max(0, input.jumpQ - dt); coyote = grounded ? 0.12 : Math.max(0, coyote - dt);
+  if (input.jumpQ > 0 && coyote > 0){ vy = 7.3; input.jumpQ = 0; coyote = 0; grounded = false; blip(220, 420, 0.12, 'triangle', 0.06); if (!jumped){ jumped = true; setTimeout(() => once('jump', lines.jump), 600); } }
+  vy -= 22 * dt; if (vy < -30) vy = -30;
+
+  // Movimiento con colisiones
+  player.moveWithCollisions(tmp.set(vel.x * dt, 0, vel.z * dt));
+  const y0 = player.position.y, want = vy * dt;
+  player.moveWithCollisions(tmp.set(0, want, 0));
+  const dy = player.position.y - y0;
+  if (want < -0.0005 && dy > want * 0.5){ grounded = true; vy = 0; }
+  else if (want > 0.0005 && dy < want * 0.5){ vy = 0; grounded = false; }
+  else grounded = vy <= 0 && onGround();
+  if (grounded && vy < 0) vy = 0;
+  if (player.position.y < -6){ player.position.copyFrom(SPAWN); vel.set(0, 0, 0); vy = 0; once('fall', lines.fall); }
+
+  // Animación procedural del personaje
+  const spd = Math.hypot(vel.x, vel.z);
+  if (spd > 0.25) faceYaw = lerpAngle(faceYaw, Math.atan2(vel.x, vel.z), 1 - Math.exp(-12 * dt));
+  vis.rotation.y = faceYaw;
+  const L = limbs;
+  if (grounded){
+    animPh += dt * (2.2 + spd * 1.55);
+    const amp = Math.min(1, spd / 6.4) * 0.85, s = Math.sin(animPh), c = Math.cos(animPh);
+    L.hipL.rotation.x = s * amp; L.hipR.rotation.x = -s * amp;
+    L.kneeL.rotation.x = Math.max(0, -c) * amp * 1.4 + 0.05; L.kneeR.rotation.x = Math.max(0, c) * amp * 1.4 + 0.05;
+    L.shL.rotation.x = -s * amp * 0.9; L.shR.rotation.x = s * amp * 0.9;
+    L.elL.rotation.x = -0.25 - amp * 0.5; L.elR.rotation.x = -0.25 - amp * 0.5;
+    L.shL.rotation.z = -0.08; L.shR.rotation.z = 0.08;
+    pelvis.position.y = 0.95 - Math.abs(c) * 0.05 * amp + (spd < 0.2 ? Math.sin(t * 2) * 0.008 : 0);
+    pelvis.rotation.x = amp * 0.18;
+  } else {
+    const up = vy > 0;
+    L.hipL.rotation.x = up ? -0.9 : -0.5; L.hipR.rotation.x = up ? 0.25 : 0.1;
+    L.kneeL.rotation.x = up ? 1.2 : 0.6; L.kneeR.rotation.x = up ? 0.5 : 0.4;
+    L.shL.rotation.x = -2.2; L.shR.rotation.x = -2.0; L.shL.rotation.z = -0.5; L.shR.rotation.z = 0.5;
+    L.elL.rotation.x = -0.4; L.elR.rotation.x = -0.4; pelvis.rotation.x = 0.1;
+  }
+
+  // Cámara
+  camTarget.set(player.position.x, player.position.y + 1.55, player.position.z);
+  const rx = Math.cos(camYaw) * 0.35, rz = -Math.sin(camYaw) * 0.35;
+  camTarget.x += rx; camTarget.z += rz;
+  const cp = Math.cos(camPitch);
+  const dir = new V3(-Math.sin(camYaw) * cp, Math.sin(camPitch), -Math.cos(camYaw) * cp);
+  ray.origin.copyFrom(camTarget); ray.direction.copyFrom(dir); ray.length = camDist + 0.3;
+  const hit = scene.pickWithRay(ray, camPred);
+  const d = hit && hit.hit ? Math.max(0.6, hit.distance - 0.3) : camDist;
+  camCur += (d - camCur) * (d < camCur ? 1 : 1 - Math.exp(-4 * dt));
+  camPos.copyFrom(camTarget).addInPlace(dir.scale(camCur));
+  cam.position.copyFrom(camPos); cam.setTarget(camTarget);
+  sun.position.set(player.position.x + 10, 30, player.position.z + 15);
+  dustAnchor.position.copyFrom(player.position);
+
+  // Celdas
+  cells.forEach(c => {
+    if (c.taken) return;
+    const dx = c.n.position.x - player.position.x, dyy = c.n.position.y - (player.position.y + 0.9), dz = c.n.position.z - player.position.z;
+    if (dx * dx + dyy * dyy + dz * dz < 1.3){
+      c.taken = true; c.n.setEnabled(false); got++;
+      $('cnt').textContent = got + '/5'; document.querySelectorAll('#pips i').forEach((p, i) => p.classList.toggle('on', i < got));
+      blip(520, 1040, 0.25, 'sine', 0.12); setTimeout(() => blip(780, 1560, 0.2, 'sine', 0.08), 90);
+      toast('CELDA DE ENERGÍA ' + got + '/5');
+      if (got < 5) say(lines.got[got - 1]); else say(...lines.done);
+    }
+  });
+  // Diálogos por lugar
+  const p = player.position;
+  if (p.x < -17 && p.z < -7) once('server', lines.server);
+  if (p.z > 13 && p.x > 15) once('door', lines.door);
+  if (p.y > 2.5 && p.x < 14 && p.z > 14) once('ramp', lines.ramp);
+  if (usedJoy || keys.KeyW) idleT += dt; if (idleT > 25 && !running) once('idle', lines.idle);
+
+  updateDialog(dt);
+  if (toastT > 0){ toastT -= dt; if (toastT <= 0) $('toast').classList.remove('show'); }
+
+  // Calidad adaptativa: si el celular sufre, bajamos resolución y efectos
+  fpsAcc += engine.getFps(); fpsN++;
+  if (fpsN >= 180){
+    const avg = fpsAcc / fpsN; fpsAcc = 0; fpsN = 0;
+    if (avg < 32 && quality === 2 && dpr > 1){ quality = 1; engine.setHardwareScalingLevel(1); }
+    else if (avg < 28 && quality >= 1){ quality = 0; glow.intensity = 0; glow.isEnabled = false; dust.stop(); shadows.filteringQuality = B.ShadowGenerator.QUALITY_LOW; shafts.forEach(s => s.setEnabled(false)); }
+  }
+  if (showFps) $('fps').textContent = engine.getFps().toFixed(0) + ' FPS · calidad ' + quality;
+});
+const showFps = /fps/.test(location.hash);
+
+/* ---------- Arranque ---------- */
+dust.start();
+scene.activeCamera = cam;
+scene.executeWhenReady(() => {
+  $('loading').hidden = true; $('title').hidden = false;
+});
+$('start').addEventListener('click', () => {
+  ensureAudio(); blip(300, 600, 0.3, 'sine', 0.08);
+  if (matchMedia('(pointer:coarse)').matches) goFullscreen(true);
+  $('title').hidden = true; ['obj', 'btns', 'topr'].forEach(id => $(id).hidden = false);
+  if (matchMedia('(pointer:coarse)').matches) $('joyHint').hidden = false;
+  started = true; camYaw = 0; camPitch = 0.28;
+  setTimeout(() => say(...lines.intro), 700);
+});
+engine.runRenderLoop(() => scene.render());
+addEventListener('resize', () => engine.resize());
+window.__game = {scene, player, get grounded(){ return grounded; }, input, joyVec: v => { joyVec = v; }, start: () => $('start').click()};
+})();
+</script>
